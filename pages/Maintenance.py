@@ -1,5 +1,4 @@
 import streamlit as st
-import matplotlib
 matplotlib.use("Agg")  # Use the "Agg" backend which does not require a GUI
 import numpy as np
 
