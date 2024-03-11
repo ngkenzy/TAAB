@@ -1,5 +1,4 @@
 import streamlit as st
-matplotlib.use("Agg")  # Use the "Agg" backend which does not require a GUI
 import numpy as np
 
 # Function to calculate available aircraft based on crew chiefs and maintenance
