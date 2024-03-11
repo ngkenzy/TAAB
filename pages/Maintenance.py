@@ -1,4 +1,5 @@
 import streamlit as st
+import matplotlib.pyplot as plt
 import numpy as np
 
 # Function to calculate available aircraft based on crew chiefs and maintenance
@@ -32,6 +33,7 @@ for day in days:
     available_aircraft_over_time.append(available_aircraft)
 
 # Plot
+fig, ax = plt.subplots(2, 1, figsize=(10, 12))
     
 ax[0].plot(days, available_aircraft_over_time, marker='o', color='b', label='Available Aircraft')
 ax[0].set_title('Aircraft Availability Over Time')
