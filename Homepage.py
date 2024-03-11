@@ -49,3 +49,28 @@ officers = [
 # Use for loop to display officers neatly
 for officer in officers:
     st.write(officer)
+
+
+
+import streamlit as st
+import pandas as pd
+
+def main():
+    st.title("Excel File Uploader and Viewer")
+
+    uploaded_file = st.file_uploader("Upload an Excel file", type=["xlsx"])
+
+    if uploaded_file is not None:
+        try:
+            xl = pd.ExcelFile(uploaded_file)
+            sheet_names = xl.sheet_names
+            selected_sheet = st.selectbox("Select a sheet to display", sheet_names)
+
+            df = pd.read_excel(xl, sheet_name=selected_sheet)
+            st.write("### Uploaded Excel File Contents:")
+            st.write(df)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()
