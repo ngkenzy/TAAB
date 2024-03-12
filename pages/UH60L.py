@@ -1,8 +1,6 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import streamlit as st
 
 st.set_page_config(
     page_title="12th Aviation Battalion",
@@ -351,111 +349,6 @@ axs[2].set_title('Remaining Resources')
 plt.tight_layout()
 st.pyplot(fig)
 
-def calculate_mission_allocations(total_aircrews, total_aircrafts):
-    # Missions dictionary as provided
-    missions = {
-        'R': {'aircrews': 1, 'aircrafts': 1},
-        'TPZ1 Day': {'aircrews': 2, 'aircrafts': 3},  # Including spare
-        'TPZ1 Night': {'aircrews': 2, 'aircrafts': 0},  # Shared with TPZ1 Day
-        'TPZ2 Day': {'aircrews': 2, 'aircrafts': 3},  # Including spare
-        'TPZ2 Night': {'aircrews': 2, 'aircrafts': 0},  # Shared with TPZ2 Day
-        'JADOC': {'aircrews': 2, 'aircrafts': 2},  # JADOC Turn OFF
-        'AMR': {'aircrews': 2, 'aircrafts': 2},
-        'Training 1': {'aircrews': 1, 'aircrafts': 1},
-        'Training 2': {'aircrews': 1, 'aircrafts': 1},
-    }
-    
-    completed_missions = {}
-    incomplete_missions = {}
-
-    for mission, req in missions.items():
-        if total_aircrews >= req['aircrews'] and total_aircrafts >= req['aircrafts']:
-            completed_missions[mission] = req
-            total_aircrews -= req['aircrews']
-            total_aircrafts -= req['aircrafts']
-        else:
-            incomplete_missions[mission] = req
-    
-    # Remaining resources
-    remaining_resources = {
-        'UHL Aircrews': total_aircrews,
-        'UHL Aircrafts': total_aircrafts
-    }
-    
-    return completed_missions, incomplete_missions, remaining_resources
-
-def perform_30_day_simulation(aircrew_range, aircraft_range, days=30):
-    results = {
-        'day': [],
-        'completed_missions': [],
-        'incomplete_missions': [],
-        'remaining_aircrews': [],
-        'remaining_aircrafts': []
-    }
-    
-    for day in range(1, days + 1):
-        aircrews = np.random.randint(aircrew_range[0], aircrew_range[1] + 1)
-        aircrafts = np.random.randint(aircraft_range[0], aircraft_range[1] + 1)
-        
-        completed_missions, incomplete_missions, remaining_resources = calculate_mission_allocations(aircrews, aircrafts)
-        
-        # Record results
-        results['day'].append(day)
-        results['completed_missions'].append(len(completed_missions))
-        results['incomplete_missions'].append(len(incomplete_missions))
-        results['remaining_aircrews'].append(remaining_resources['UHL Aircrews'])
-        results['remaining_aircrafts'].append(remaining_resources['UHL Aircrafts'])
-    
-    return results
-
-
-#####################
-
-# Streamlit App Layout
-st.title('Mission Allocation and 30-Day Simulation')
-
-# Inputs for total resources and ranges for simulation
-total_aircrews_input = st.number_input('Total Aircrews', value=13)
-total_aircrafts_input = st.number_input('Total Aircrafts', value=10)
-aircrew_range_min = st.number_input('Minimum Aircrews Available Daily', value=11, min_value=0)
-aircrew_range_max = st.number_input('Maximum Aircrews Available Daily', value=13, min_value=0)
-aircraft_range_min = st.number_input('Minimum Aircrafts Available Daily', value=9, min_value=0)
-aircraft_range_max = st.number_input('Maximum Aircrafts Available Daily', value=12, min_value=0)
-
-# Perform simulation
-simulation_results = perform_30_day_simulation((aircrew_range_min, aircrew_range_max), (aircraft_range_min, aircraft_range_max))
-
-# Plotting the results
-fig, axs = plt.subplots(2, 2, figsize=(15, 10))
-
-# Completed missions
-axs[0, 0].plot(simulation_results['day'], simulation_results['completed_missions'], marker='o', linestyle='-')
-axs[0, 0].set_title('Completed Missions per Day')
-axs[0, 0].set_xlabel('Day')
-axs[0, 0].set_ylabel('Number of Completed Missions')
-
-# Incomplete missions
-axs[0, 1].plot(simulation_results['day'], simulation_results['incomplete_missions'], marker='o', linestyle='-', color='red')
-axs[0, 1].set_title('Incomplete Missions per Day')
-axs[0, 1].set_xlabel('Day')
-axs[0, 1].set_ylabel('Number of Incomplete Missions')
-
-# Remaining aircrews
-axs[1, 0].plot(simulation_results['day'], simulation_results['remaining_aircrews'], marker='o', linestyle='-', color='green')
-axs[1, 0].set_title('Remaining Aircrews per Day')
-axs[1, 0].set_xlabel('Day')
-axs[1, 0].set_ylabel('Number of Remaining Aircrews')
-
-# Remaining aircrafts
-axs[1, 1].plot(simulation_results['day'], simulation_results['remaining_aircrafts'], marker='o', linestyle='-', color='purple')
-axs[1, 1].set_title('Remaining Aircrafts per Day')
-axs[1, 1].set_xlabel('Day')
-axs[1, 1].set_ylabel('Number of Remaining Aircrafts')
-
-plt.tight_layout()
-
-st.pyplot(fig)
-
 def calculate_mission_allocations(total_aircrews, total_aircrafts, missions):
     completed_missions = {}
     incomplete_missions = {}
@@ -505,12 +398,27 @@ def perform_30_day_simulation(aircrew_range, aircraft_range, include_jadoc=True,
     
     return average_completions, average_incompletions
 
-# Streamlit App Layout
+import streamlit as st
+import pandas as pd
+import numpy as np
+
 st.title('Mission Allocation and 30-Day Simulation')
 
+# Inputs for total resources and ranges for simulation
+total_aircrews_input = st.number_input('Total Aircrews', value=13)
+total_aircrafts_input = st.number_input('Total Aircrafts', value=10)
+aircrew_range_min = st.number_input('Minimum Aircrews Available Daily', value=11, min_value=0)
+aircrew_range_max = st.number_input('Maximum Aircrews Available Daily', value=13, min_value=0)
+aircraft_range_min = st.number_input('Minimum Aircrafts Available Daily', value=9, min_value=0)
+aircraft_range_max = st.number_input('Maximum Aircrafts Available Daily', value=12, min_value=0)
+
+# Toggle for JADOC mission inclusion
+include_jadoc = st.checkbox('Add JADOC Mission', value=True)
 
 # Perform simulation
-average_completions, average_incompletions = perform_30_day_simulation((aircrew_range_min, aircrew_range_max), (aircraft_range_min, aircraft_range_max))
+average_completions, average_incompletions = perform_30_day_simulation((aircrew_range_min, aircrew_range_max),
+                                                                       (aircraft_range_min, aircraft_range_max),
+                                                                       include_jadoc)
 
 # Convert dictionary to two columns for Streamlit
 completion_df = pd.DataFrame(list(average_completions.items()), columns=['Mission', 'Average Completions'])
@@ -523,4 +431,53 @@ st.bar_chart(completion_df.set_index('Mission'))
 st.subheader('Average Mission Incompletions over 30 Days')
 st.bar_chart(incompletion_df.set_index('Mission'))
 
+# Define functions
 
+def calculate_mission_allocations(total_aircrews, total_aircrafts, missions):
+    completed_missions = {}
+    incomplete_missions = {}
+    for mission, req in missions.items():
+        if total_aircrews >= req['aircrews'] and total_aircrafts >= req['aircrafts']:
+            completed_missions[mission] = req
+            total_aircrews -= req['aircrews']
+            total_aircrafts -= req['aircrafts']
+        else:
+            incomplete_missions[mission] = req
+    remaining_resources = {'UHL Aircrews': total_aircrews, 'UHL Aircrafts': total_aircrafts}
+    return completed_missions, incomplete_missions, remaining_resources
+
+def perform_30_day_simulation(aircrew_range, aircraft_range, include_jadoc=True, days=30):
+    missions = {
+        'R': {'aircrews': 1, 'aircrafts': 1},
+        'TPZ1 Day': {'aircrews': 2, 'aircrafts': 3},
+        'TPZ1 Night': {'aircrews': 2, 'aircrafts': 0},
+        'TPZ2 Day': {'aircrews': 2, 'aircrafts': 3},
+        'TPZ2 Night': {'aircrews': 2, 'aircrafts': 0},
+        'AMR': {'aircrews': 2, 'aircrafts': 2},
+        'Training 1': {'aircrews': 1, 'aircrafts': 1},
+        'Training 2': {'aircrews': 1, 'aircrafts': 1},
+    }
+    
+    # Conditionally include JADOC based on the toggle
+    if include_jadoc:
+        missions['JADOC'] = {'aircrews': 2, 'aircrafts': 2}  # Adjust these numbers as per requirements
+
+    mission_completions = {mission: 0 for mission in missions.keys()}
+    mission_incompletions = {mission: 0 for mission in missions.keys()}
+
+    for day in range(1, days + 1):
+        aircrews = np.random.randint(aircrew_range[0], aircrew_range[1] + 1)
+        aircrafts = np.random.randint(aircraft_range[0], aircraft_range[1] + 1)
+        
+        completed_missions, incomplete_missions, _ = calculate_mission_allocations(aircrews, aircrafts, missions)
+        
+        for mission in completed_missions:
+            mission_completions[mission] += 1
+        
+        for mission in incomplete_missions:
+            mission_incompletions[mission] += 1
+
+    average_completions = {mission: completions / days for mission, completions in mission_completions.items()}
+    average_incompletions = {mission: incompletions / days for mission, incompletions in mission_incompletions.items()}
+    
+    return average_completions, average_incompletions
