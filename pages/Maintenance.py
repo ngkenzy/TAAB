@@ -1,5 +1,4 @@
 import streamlit as st
-import matplotlib.pyplot as plt
 import numpy as np
 
 # Function to calculate available aircraft based on crew chiefs and maintenance
@@ -20,7 +19,6 @@ unscheduled_maintenance = st.slider('Unscheduled Maintenance per Day', 0, 10, 0)
 simulation_days = st.slider('Simulation Days', 1, 100, 60)
 
 # Simulation
-# Simulation
 days = np.arange(1, simulation_days + 1)
 available_aircraft_over_time = []
 
@@ -33,27 +31,16 @@ for day in days:
     available_aircraft_over_time.append(available_aircraft)
 
 # Plot
-fig, ax = plt.subplots(2, 1, figsize=(10, 12))
-    
-ax[0].plot(days, available_aircraft_over_time, marker='o', color='b', label='Available Aircraft')
-ax[0].set_title('Aircraft Availability Over Time')
-ax[0].set_xlabel('Day')
-ax[0].set_ylabel('Number of Available Aircraft')
-ax[0].grid(True)
-ax[0].legend()
+st.subheader('Aircraft Availability Over Time')
+st.line_chart(available_aircraft_over_time)
 
 # Plot histogram for available aircraft distribution
-ax[1].hist(available_aircraft_over_time, bins=10, color='skyblue', edgecolor='black')
-ax[1].set_title('Distribution of Available Aircraft')
-ax[1].set_xlabel('Number of Available Aircraft')
-ax[1].set_ylabel('Frequency')
-ax[1].grid(True)
-
-# Display plots
-st.pyplot(fig)
+st.subheader('Distribution of Available Aircraft')
+st.histogram(available_aircraft_over_time, bins=10)
 
 # Summary
 st.write(f"Maximum Available Aircraft: {max(available_aircraft_over_time)}")
 st.write(f"Minimum Available Aircraft: {min(available_aircraft_over_time)}")
 st.write(f"Average Available Aircraft: {np.mean(available_aircraft_over_time)}")
 st.write(f"Median Available Aircraft: {np.median(available_aircraft_over_time)}")
+
