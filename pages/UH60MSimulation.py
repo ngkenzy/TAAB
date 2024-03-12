@@ -1,8 +1,8 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 from random import randint
+import plotly.graph_objects as go
 
 # Define missions and their requirements (flexible allocation)
 missions = {
@@ -28,8 +28,8 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
         uhm_maintenance = randint(*uhm_maintenance_range)
 
         # Available resources for the day
-        available_vhm = total_vhm_aircraft - vhm_phase_maintenance - vhm_maintenance
-        available_uhm = total_uhm_aircraft - uhm_phase_maintenance - uhm_maintenance
+        available_vhm = max(total_vhm_aircraft - vhm_phase_maintenance - vhm_maintenance, 0)
+        available_uhm = max(total_uhm_aircraft - uhm_phase_maintenance - uhm_maintenance, 0)
         available_aircrews = randint(*aircrew_availability_range)
 
         # Check mission sufficiency
@@ -40,16 +40,10 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
                 req_vhm = 0
                 req_uhm = 0
 
-                # Check if mission specifies aircraft requirements (handle different cases)
-                aircraft_req = missions[mission].get("aircraft")
-                if aircraft_req:
-                    if "VHM" in aircraft_req:
-                        req_vhm = aircraft_req["VHM"]
-                    if "UHM" in aircraft_req:
-                        req_uhm = aircraft_req["UHM"]
-                else:
-                    # Mission allows any type (VHM, UHM, or none)
-                    continue  # Skip to the next mission
+                # Check if mission specifies aircraft requirements
+                aircraft_req = missions[mission].get("aircraft", {})
+                req_vhm = aircraft_req.get("VHM", 0)
+                req_uhm = aircraft_req.get("UHM", 0)
 
                 # Check if resources are sufficient for the mission
                 if available_aircrews >= req_aircrews and (available_vhm >= req_vhm or available_uhm >= req_uhm):
@@ -74,7 +68,8 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
 
 # Streamlit app function
 def app():
-    global missions  # This line is typically unnecessary for reading a global variable, but added for clarity.
+    global missions
+
     st.title("VHM/UHM Aircraft and Aircrew Allocation Simulation")
 
     # User inputs for initial conditions
@@ -94,46 +89,15 @@ def app():
     st.header("Toggle Missions")
     missions_status = {mission: st.checkbox(f"{mission} Mission", True) for mission in missions}
 
-
     # Run simulation
     if st.button("Run Simulation"):
         result, missions_not_sufficient, missions_met = simulate_daily_operations(
             total_vhm_aircraft, total_uhm_aircraft, vhm_phase_maintenance, uhm_phase_maintenance,
             (vhm_maintenance_low, vhm_maintenance_high), (uhm_maintenance_low, uhm_maintenance_high),
             (aircrew_availability_low, aircrew_availability_high), missions_status)
+        
         # Plotting the results
-        fig, axs = plt.subplots(3, 1, sharex=True, figsize=(8, 10))  # Create three subplots for aircraft, aircrew, and missions
-
-        axs[0].plot(result["day"], result["available_vhm"], label="Available VHM")
-        axs[0].plot(result["day"], result["available_uhm"], label="Available UHM")
-        axs[0].set_ylabel("Number Available (Aircraft)")
-        axs[0].legend()
-        axs[0].set_title("Daily Availability of VHM and UHM Aircraft")
-
-        axs[1].plot(result["day"], result["available_aircrews"], label="Available Aircrews")
-        axs[1].set_xlabel("Day")
-        axs[1].set_ylabel("Number Available (Aircrews)")
-        axs[1].legend()
-        axs[1].set_title("Daily Availability of Aircrews")
-
-        missions_labels = list(missions_met.keys())
-        missions_values = list(missions_met.values())
-        bar_plot = axs[2].barh(missions_labels, missions_values, color='skyblue')
-        axs[2].set_xlabel('Number of Days')
-        axs[2].set_ylabel('Missions')
-        axs[2].set_title('Total Missions Met')
-
-        for i, (mission, days_met) in enumerate(missions_met.items()):
-            days_not_met = result.shape[0] - days_met
-            percentage_met = (days_met / result.shape[0]) * 100
-            percentage_not_met = (days_not_met / result.shape[0]) * 100
-            st.write(f"{mission}: {percentage_met:.2f}% Met, {percentage_not_met:.2f}% Not Met")
-
-            # Annotate the bar plot with percentages
-            axs[2].text(days_met, i, f'{percentage_met:.2f}%', va='center')
-
-        fig.suptitle("Daily Availability of Resources and Total Missions Met")  # Add a supertitle for all plots
-        st.pyplot(fig)
+        st.line_chart(result.set_index("day")[["available_vhm", "available_uhm", "available_aircrews"]])
 
         # Display missions that are not sufficiently met
         if missions_not_sufficient:
@@ -143,5 +107,22 @@ def app():
         else:
             st.write("All missions are sufficiently met throughout the simulation period.")
 
+        # Display total missions met
+        st.subheader("Total Missions Met")
+        for mission, days_met in missions_met.items():
+            days_not_met = result.shape[0] - days_met
+            percentage_met = (days_met / result.shape[0]) * 100
+            percentage_not_met = (days_not_met / result.shape[0]) * 100
+            st.write(f"{mission}: {percentage_met:.2f}% Met, {percentage_not_met:.2f}% Not Met")
+
+        # Plotting the percentage of missions met vs not met
+        fig = go.Figure(data=[
+            go.Bar(name='Met', x=list(missions_met.keys()), y=[(days_met / result.shape[0]) * 100 for days_met in missions_met.values()]),
+            go.Bar(name='Not Met', x=list(missions_met.keys()), y=[((result.shape[0] - days_met) / result.shape[0]) * 100 for days_met in missions_met.values()])
+        ])
+        fig.update_layout(barmode='stack', title='Percentage of Missions Met vs Not Met')
+        st.plotly_chart(fig)
+
+# Call the app function to run the Streamlit app
 if __name__ == "__main__":
     app()
