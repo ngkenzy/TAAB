@@ -1,4 +1,7 @@
-import streamlit as st
+import streamlit as st  # Import the Streamlit library
+import numpy as np  # Import NumPy library
+import pandas as pd  # Import Pandas library
+from random import randint  # Import randint function from random module
 
 # Define missions and their requirements
 missions = {
@@ -18,11 +21,11 @@ def simulate_daily_operations(total_uhl_aircraft_on_hand, uhl_aircraft_phase_mai
 
     for day in range(days):
         # Initialize or update aircraft maintenance
-        aircraft_in_maintenance = uhl_aircraft_phase_maintenance + uhl_aircrews_available[0]  # Using low range for maintenance
+        aircraft_in_maintenance = uhl_aircraft_phase_maintenance + randint(*scheduled_unscheduled_maintenance_range)
         
         # Available resources for the day
         available_aircraft = total_uhl_aircraft_on_hand - aircraft_in_maintenance
-        available_aircrews = uhl_aircrews_available[1]  # Use high range for aircrews
+        available_aircrews = randint(*uhl_aircrews_available)  # Stochastic aircrew availability
         
         # Check mission sufficiency
         insufficient_missions = []
@@ -49,7 +52,7 @@ def simulate_daily_operations(total_uhl_aircraft_on_hand, uhl_aircraft_phase_mai
         if insufficient_missions:
             missions_not_sufficient.append((day+1, insufficient_missions))
     
-    return daily_status, missions_not_sufficient
+    return pd.DataFrame(daily_status), missions_not_sufficient
 
 # Streamlit app function
 def app():
@@ -57,34 +60,52 @@ def app():
     st.title("UHL Aircraft and Aircrew Allocation Simulation")
 
     # User inputs for initial conditions
-    total_uhl_aircraft_on_hand = st.number_input("Total UHL Aircrafts on-hand", value=16, min_value=0)
-    uhl_aircraft_phase_maintenance = st.number_input("UHL Aircrafts Phase Maintenance", value=2, min_value=0)
-    aircrews_available_low = st.number_input("UHL Aircrews Available Low", value=11, min_value=0)
-    aircrews_available_high = st.number_input("UHL Aircrews Available High", value=13, min_value=0)
-    scheduled_maintenance_low = st.number_input("Scheduled/Unscheduled Maintenance Low", value=4, min_value=0)
-    scheduled_maintenance_high = st.number_input("Scheduled/Unscheduled Maintenance High", value=5, min_value=0)
+    st.sidebar.header("Initial Conditions")
+    total_uhl_aircraft_on_hand = st.sidebar.number_input("Total UHL Aircrafts on-hand", value=16, min_value=0)
+    uhl_aircraft_phase_maintenance = st.sidebar.number_input("UHL Aircrafts Phase Maintenance", value=2, min_value=0)
+    aircrews_available_low = st.sidebar.number_input("UHL Aircrews Available Low", value=11, min_value=0)
+    aircrews_available_high = st.sidebar.number_input("UHL Aircrews Available High", value=13, min_value=0)
+    scheduled_maintenance_low = st.sidebar.number_input("Scheduled/Unscheduled Maintenance Low", value=4, min_value=0)
+    scheduled_maintenance_high = st.sidebar.number_input("Scheduled/Unscheduled Maintenance High", value=5, min_value=0)
     
     # Toggle missions
     st.header("Toggle Missions")
-    missions_status = {}
-    for mission in missions:
-        missions_status[mission] = st.checkbox(f"{mission} Mission", True)
+    missions_status = {mission: st.checkbox(f"{mission} Mission", True) for mission in missions}
 
     # Run simulation
     if st.button("Run Simulation"):
         result, missions_not_sufficient = simulate_daily_operations(
             total_uhl_aircraft_on_hand, uhl_aircraft_phase_maintenance,
-            (scheduled_maintenance_low, scheduled_maintenance_high),
-            (aircrews_available_low, aircrews_available_high), 
+            (aircrews_available_low, aircrews_available_high),
+            (scheduled_maintenance_low, scheduled_maintenance_high), 
             missions_status)
 
-        # Display results
-        st.write("Daily Status:")
-        st.write(result)
+        # Plotting the results
+        st.line_chart(result[["day", "available_aircraft", "available_aircrews"]].set_index("day"))
+
+        # Calculate mission status percentages
+        total_days = len(result)
+        missions_status_counts = {mission: 0 for mission in missions}
+        for _, row in result.iterrows():
+            for mission in row["insufficient_missions"]:
+                missions_status_counts[mission] += 1
         
+        # Plotting the average status (met and not met) for each mission
+        met_percentages = [((total_days - count) / total_days) * 100 for count in missions_status_counts.values()]
+        not_met_percentages = [(count / total_days) * 100 for count in missions_status_counts.values()]
+        mission_labels = list(missions_status_counts.keys())
+
+        mission_data = pd.DataFrame({
+            "Mission": mission_labels,
+            "Met": met_percentages,
+            "Not Met": not_met_percentages
+        }).set_index("Mission")
+
+        st.bar_chart(mission_data)
+
         # Display missions that are not sufficiently met
         if missions_not_sufficient:
-            st.subheader("Insufficient Missions by Day:")
+            st.subheader("Insufficient Missions by Day")
             for day, missions in missions_not_sufficient:
                 st.write(f"Day {day}: {', '.join(missions)}")
         else:
