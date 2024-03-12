@@ -119,20 +119,17 @@ def app():
         missions_labels = list(missions_met.keys())
         missions_values_met = list(missions_met.values())
         missions_values_not_met = [result.shape[0] - met for met in missions_values_met]
+        missions_percentage_met = [(met / result.shape[0]) * 100 for met in missions_values_met]
+        missions_percentage_not_met = [(not_met / result.shape[0]) * 100 for not_met in missions_values_not_met]
 
         missions_data = pd.DataFrame({
             'Mission': missions_labels,
-            'Met': missions_values_met,
-            'Not Met': missions_values_not_met
+            'Met': missions_percentage_met,
+            'Not Met': missions_percentage_not_met
         })
 
-        missions_data['Percentage Met'] = (missions_data['Met'] / result.shape[0]) * 100
-        missions_data['Percentage Not Met'] = (missions_data['Not Met'] / result.shape[0]) * 100
-
-        missions_data = missions_data.set_index('Mission')
-        
         st.subheader("Mission Met vs Not Met")
-        st.bar_chart(missions_data[['Percentage Met', 'Percentage Not Met']])
+        st.bar_chart(missions_data.set_index('Mission'))
 
         # Display missions that are not sufficiently met
         if missions_not_sufficient:
