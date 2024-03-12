@@ -2,7 +2,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 from random import randint
-import plotly.graph_objects as go
 
 # Define missions and their requirements (flexible allocation)
 missions = {
@@ -28,8 +27,8 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
         uhm_maintenance = randint(*uhm_maintenance_range)
 
         # Available resources for the day
-        available_vhm = max(total_vhm_aircraft - vhm_phase_maintenance - vhm_maintenance, 0)
-        available_uhm = max(total_uhm_aircraft - uhm_phase_maintenance - uhm_maintenance, 0)
+        available_vhm = total_vhm_aircraft - vhm_phase_maintenance - vhm_maintenance
+        available_uhm = total_uhm_aircraft - uhm_phase_maintenance - uhm_maintenance
         available_aircrews = randint(*aircrew_availability_range)
 
         # Check mission sufficiency
@@ -40,10 +39,16 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
                 req_vhm = 0
                 req_uhm = 0
 
-                # Check if mission specifies aircraft requirements
-                aircraft_req = missions[mission].get("aircraft", {})
-                req_vhm = aircraft_req.get("VHM", 0)
-                req_uhm = aircraft_req.get("UHM", 0)
+                # Check if mission specifies aircraft requirements (handle different cases)
+                aircraft_req = missions[mission].get("aircraft")
+                if aircraft_req:
+                    if "VHM" in aircraft_req:
+                        req_vhm = aircraft_req["VHM"]
+                    if "UHM" in aircraft_req:
+                        req_uhm = aircraft_req["UHM"]
+                else:
+                    # Mission allows any type (VHM, UHM, or none)
+                    continue  # Skip to the next mission
 
                 # Check if resources are sufficient for the mission
                 if available_aircrews >= req_aircrews and (available_vhm >= req_vhm or available_uhm >= req_uhm):
@@ -68,8 +73,7 @@ def simulate_daily_operations(total_vhm_aircraft, total_uhm_aircraft, vhm_phase_
 
 # Streamlit app function
 def app():
-    global missions
-
+    global missions  # This line is typically unnecessary for reading a global variable, but added for clarity.
     st.title("VHM/UHM Aircraft and Aircrew Allocation Simulation")
 
     # User inputs for initial conditions
@@ -89,6 +93,7 @@ def app():
     st.header("Toggle Missions")
     missions_status = {mission: st.checkbox(f"{mission} Mission", True) for mission in missions}
 
+
     # Run simulation
     if st.button("Run Simulation"):
         result, missions_not_sufficient, missions_met = simulate_daily_operations(
@@ -96,8 +101,38 @@ def app():
             (vhm_maintenance_low, vhm_maintenance_high), (uhm_maintenance_low, uhm_maintenance_high),
             (aircrew_availability_low, aircrew_availability_high), missions_status)
         
-        # Plotting the results
-        st.line_chart(result.set_index("day")[["available_vhm", "available_uhm", "available_aircrews"]])
+        # Display results using Streamlit components
+        st.subheader("Daily Availability of VHM and UHM Aircraft")
+        st.line_chart(result[['available_vhm', 'available_uhm']])
+        
+        st.subheader("Daily Availability of Aircrews")
+        st.line_chart(result['available_aircrews'])
+        
+        st.subheader("Total Missions Met")
+        for mission, days_met in missions_met.items():
+            days_not_met = result.shape[0] - days_met
+            percentage_met = (days_met / result.shape[0]) * 100
+            percentage_not_met = (days_not_met / result.shape[0]) * 100
+            st.write(f"{mission}: {percentage_met:.2f}% Met, {percentage_not_met:.2f}% Not Met")
+        
+        # Bar chart for missions met and not met
+        missions_labels = list(missions_met.keys())
+        missions_values_met = list(missions_met.values())
+        missions_values_not_met = [result.shape[0] - met for met in missions_values_met]
+
+        missions_data = pd.DataFrame({
+            'Mission': missions_labels,
+            'Met': missions_values_met,
+            'Not Met': missions_values_not_met
+        })
+
+        missions_data['Percentage Met'] = (missions_data['Met'] / result.shape[0]) * 100
+        missions_data['Percentage Not Met'] = (missions_data['Not Met'] / result.shape[0]) * 100
+
+        missions_data = missions_data.set_index('Mission')
+        
+        st.subheader("Mission Met vs Not Met")
+        st.bar_chart(missions_data[['Percentage Met', 'Percentage Not Met']])
 
         # Display missions that are not sufficiently met
         if missions_not_sufficient:
@@ -107,22 +142,5 @@ def app():
         else:
             st.write("All missions are sufficiently met throughout the simulation period.")
 
-        # Display total missions met
-        st.subheader("Total Missions Met")
-        for mission, days_met in missions_met.items():
-            days_not_met = result.shape[0] - days_met
-            percentage_met = (days_met / result.shape[0]) * 100
-            percentage_not_met = (days_not_met / result.shape[0]) * 100
-            st.write(f"{mission}: {percentage_met:.2f}% Met, {percentage_not_met:.2f}% Not Met")
-
-        # Plotting the percentage of missions met vs not met
-        fig = go.Figure(data=[
-            go.Bar(name='Met', x=list(missions_met.keys()), y=[(days_met / result.shape[0]) * 100 for days_met in missions_met.values()]),
-            go.Bar(name='Not Met', x=list(missions_met.keys()), y=[((result.shape[0] - days_met) / result.shape[0]) * 100 for days_met in missions_met.values()])
-        ])
-        fig.update_layout(barmode='stack', title='Percentage of Missions Met vs Not Met')
-        st.plotly_chart(fig)
-
-# Call the app function to run the Streamlit app
 if __name__ == "__main__":
     app()
